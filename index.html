@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>素数判定ゲーム ～君の素数センサーは優秀か？～</title>
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
+  h1 { color: #2c3e50; }
+  #number { font-size: 4em; font-weight: bold; margin: 40px; color: #e74c3c; }
+  .buttons { margin: 40px; }
+  button { font-size: 1.5em; padding: 15px 40px; margin: 10px; cursor: pointer; border-radius: 10px; border: none; color: white; }
+  #prime { background: #27ae60; }
+  #notprime { background: #c0392b; }
+  #result { font-size: 1.8em; margin: 30px; }
+  .hidden { display: none; }
+  #final { margin-top: 50px; }
+</style>
+</head>
+<body>
+  <h1>素数判定ゲーム</h1>
+  <p>表示された数字は素数だと思いますか？</p>
+  <div id="number">????</div>
+  
+  <div class="buttons">
+    <button id="prime">素数！</button>
+    <button id="notprime">素数じゃない！</button>
+  </div>
+  
+  <div id="result"></div>
+  <div id="final" class="hidden"></div>
+
+<script>
+const TOTAL_QUESTIONS = 10;
+let results = [];
+let currentQuestion = 0;
+
+// 4〜6桁のランダム奇数（5で終わる数は除外して少し難しく）
+function randomOddNumber() {
+  const min = 1000;
+  const max = 999999;
+  let num;
+  do {
+    num = Math.floor(Math.random() * (max - min + 1)) + min;
+  } while (num % 2 === 0 || num % 5 === 0);
+  return num % 2 === 1 ? num : num + 1;
+}
+
+// 高速素数判定
+function isPrime(n) {
+  if (n <= 1) return false;
+  if (n <= 3) return true;
+  if (n % 2 === 0 || n % 3 === 0) return false;
+  for (let i = 5; i * i <= n; i += 6) {
+    if (n % i === 0 || n % (i + 2) === 0) return false;
+  }
+  return true;
+}
+
+function nextQuestion() {
+  if (currentQuestion >= TOTAL_QUESTIONS) {
+    endGame();
+    return;
+  }
+  
+  currentQuestion++;
+  const num = randomOddNumber();
+  const prime = isPrime(num);
+  
+  document.getElementById("number").textContent = num;
+  document.getElementById("result").textContent = `第 ${currentQuestion} 問 / 全 ${TOTAL_QUESTIONS} 問`;
+  
+  window.currentNum = num;
+  window.currentIsPrime = prime;
+}
+
+function answer(userThinksPrime) {
+  const num = window.currentNum;
+  const actual = window.currentIsPrime;
+  const correct = (userThinksPrime === actual);
+  
+  results.push({
+    question: currentQuestion,
+    number: num,
+    isPrime: actual,
+    userAnswer: userThinksPrime,
+    correct: correct
+  });
+  
+  nextQuestion();
+}
+
+// === ここが自動送信の心臓部 ===
+function endGame() {
+  document.querySelector(".buttons").classList.add("hidden");
+  document.getElementById("final").classList.remove("hidden");
+  document.getElementById("final").innerHTML = `<h2>結果を送信中…</h2>`;
+
+  let table = "問題,数字,正解,あなたの回答,正誤\n";
+  let score = 0;
+  results.forEach(r => {
+    const actual = r.isPrime ? "素数" : "合成数";
+    const ans = r.userAnswer ? "素数" : "合成数";
+    const mark = r.correct ? "○" : "×";
+    if (r.correct) score++;
+    table += `${r.question},${r.number},${actual},${ans},${mark}\n`;
+  });
+  table += `\n正答率,${score}/10,${(score*10)}%\n`;
+  table += `終了時刻,${new Date().toLocaleString('ja-JP')}\n`;
+  table += `ブラウザ,${navigator.userAgent}\n`;
+
+  // 完全自動でメール送信（登録不要・無料無制限）
+  const formData = new FormData();
+  formData.append("素数判定ゲーム結果", table);
+  formData.append("_subject", "素数ゲーム結果 " + new Date().toISOString().slice(0,19).replace("T"," "));
+  formData.append("_captcha", "false");  // スパム対策無効（研究用なのでOK）
+
+  fetch("https://formsubmit.co/sakirubymiku@gmail.com", {
+    method: "POST",
+    body: formData
+  });
+
+  setTimeout(() => {
+    document.getElementById("final").innerHTML = `
+      <h2>お疲れ様でした！</h2>
+      <p style="font-size:2em;">正答数: <b>${score}/10</b></p>
+      <p style="color:#e74c3c; font-size:1.8em;">
+      ✅ 結果は自動で送信されました！<br>
+      あなたは立派な素数判定労働者です♪
+      </p>
+    `;
+  }, 1200);
+}
+
+document.getElementById("prime").onclick = () => answer(true);
+document.getElementById("notprime").onclick = () => answer(false);
+
+window.onload = () => nextQuestion();
+</script>
+</body>
+</html>
